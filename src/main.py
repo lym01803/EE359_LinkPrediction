@@ -14,8 +14,9 @@ def Train(ET):
     nega_ratio = 10
     for i in tqdm(range(G.n)):
         for r in range(walk_num):
-            G.perform_walk(i, random.lognormvariate(0, 0.7), random.lognormvariate(0, 0.7), walk_length) # 0.7 \approx log 2
-    
+            #G.perform_walk(i, random.lognormvariate(0, 0.7), random.lognormvariate(0, 0.7), walk_length) # 0.7 \approx log 2
+            G.perform_walk(i, p=2.0, q=1.0, length=walk_length)
+
     Model = encoder.Node2Vec(G, dim=128)
     print('Learning Embedding...')
     Model.training(max_iter=100, negative=walk_length*nega_ratio, rewalk=False)

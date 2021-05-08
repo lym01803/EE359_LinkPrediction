@@ -37,9 +37,11 @@ class Node2Vec:
         print('shuffling...')
         random.shuffle(self.UnigramTable)
     
-    def training(self, max_iter=100, negative=100, rewalk=True):
+    def training(self, max_iter=100, negative=100, rewalk=True, weight_decay=1e-4):
         unisize = len(self.UnigramTable)
         lr = 0.01
+        # iter_loss = 0
+        iter_gradient_norm = 0
         for iter in tqdm(range(max_iter)):
             #loss_list = []
             iter_length = 0
@@ -98,11 +100,17 @@ class Node2Vec:
                 # embedu = self.Embeddings[u]
                 p_n = 1.0 - torch.sigmoid(-torch.matmul(embedvs_n, embedu))
 
-                self.Embeddings[u] += lr * torch.matmul(p_p, embedvs_p)
-                self.Embeddings[u] -= lr * torch.matmul(p_n, embedvs_n)
-                self.Embeddings.index_add_(0, idx_p, lr * (p_p.view(-1, 1) * embedu))
-                self.Embeddings.index_add_(0, idx_n, -lr * (p_n.view(-1, 1) * embedu))
+                dEu = lr * (torch.matmul(p_p, embedvs_p) - torch.matmul(p_n, embedvs_n)) - weight_decay * embedu
+                self.Embeddings[u] += dEu
+                # self.Embeddings[u] += lr * torch.matmul(p_p, embedvs_p)
+                # self.Embeddings[u] -= lr * torch.matmul(p_n, embedvs_n)
+                self.Embeddings.index_add_(0, idx_p, lr * (p_p.view(-1, 1) * embedu) - weight_decay * embedvs_p)
+                self.Embeddings.index_add_(0, idx_n, -lr * (p_n.view(-1, 1) * embedu) - weight_decay * embedvs_n)
                     
+                if (iter + 1) % 10 == 0:
+                    # iter_loss += torch.sum(torch.log(1.0 - p_p)).item()
+                    # iter_loss += torch.sum(torch.log(1.0 - p_n)).item()
+                    iter_gradient_norm += (torch.norm(dEu) / lr).item()
                 # loss.backward()
                 # self.optimizer.step()
                 # loss_list.append(loss.item())
@@ -110,6 +118,12 @@ class Node2Vec:
             # self.scheduler.step()
             if (iter + 1) % 25 == 0:
                 lr *= 0.5
+            if (iter + 1) % 10 == 0:
+                # print("iter : {} ; average_loss : {}".format(iter + 1, iter_loss / iter_length))
+                # iter_loss = 0
+                print('iter : {} ; average_gradient_norm : {}'.format(iter+1, 
+                    iter_gradient_norm / iter_length))
+                iter_gradient_norm = 0            
 
     def save_embeddings(self, pth):
         torch.save(self.Embeddings, pth)
