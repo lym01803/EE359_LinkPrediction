@@ -20,7 +20,7 @@ def Train(ET):
     Model = encoder.Node2Vec(G, dim=128)
     print('Learning Embedding...')
     Model.training(max_iter=100, negative=walk_length*nega_ratio, rewalk=False)
-    Model.save_embeddings('../data/save_train_valid_40000_6000_128_new.pth')
+    Model.save_embeddings('../data/save_train_128.pth')
     '''
     for i in range(100):
         u, v = input().split()
@@ -62,7 +62,28 @@ def Valid(EV, E, model=None):
             f.write('{} {} : {}\n'.format(NegativeSample[0][i], NegativeSample[1][i], Nega_score[i]))
     return 1.0 * count / len(Posi_score) / len(Nega_score)
 
-ET, EV = utils.Read_Graph('../data/course3_edge.csv', split=True, validsize=6000)
-model = Train(ET)
-Res = Valid(EV, np.hstack((ET, EV)), model)
-print("AUC: ", Res)
+def Test(Model, ETest):
+    Embeddings = Model.Embeddings
+    Euv = torch.matmul(Embeddings, Embeddings.T)
+    Euu = torch.sum(Embeddings * Embeddings, dim=1)
+    score = []
+    for i in range(ETest.shape[1]):
+        u, v = ETest[0][i], ETest[1][i]
+        score.append((Euv[u][v] / torch.sqrt(Euu[u]) / torch.sqrt(Euu[v])).item())
+    return score
+
+debug = False
+if debug:
+    ET, EV = utils.Read_Graph('../data/course3_edge.csv', split=True, validsize=6000)
+    model = Train(ET)
+    Res = Valid(EV, np.hstack((ET, EV)), model)
+    print("AUC: ", Res)
+else:
+    E = utils.Read_Graph('../data/course3_edge.csv', split=False)
+    model = Train(E)
+    ETest = utils.Read_Test('../data/course3_test.csv')
+    score = Test(model, ETest)
+    with open('../data/result.csv', 'w', encoding='utf8') as f:
+        f.write('id,label\n')
+        for i, s in enumerate(score):
+            f.write('{},{:.4f}\n'.format(i, s))

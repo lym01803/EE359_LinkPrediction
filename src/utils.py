@@ -70,6 +70,10 @@ def Read_Graph(pth, split=False, validsize=3000):
     EValid = E_[:validsize]
     return (np.array(ETrain, dtype=np.int)).T, (np.array(EValid, dtype=np.int)).T
 
+def Read_Test(pth):
+    E = np.loadtxt(pth, dtype=np.int, skiprows=1, delimiter=',')
+    return E.T[1:]
+
 def Generate_Negative(G, num):
     count = 0
     E = [[], []]

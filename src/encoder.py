@@ -104,8 +104,8 @@ class Node2Vec:
                 self.Embeddings[u] += dEu
                 # self.Embeddings[u] += lr * torch.matmul(p_p, embedvs_p)
                 # self.Embeddings[u] -= lr * torch.matmul(p_n, embedvs_n)
-                self.Embeddings.index_add_(0, idx_p, lr * (p_p.view(-1, 1) * embedu) - weight_decay * embedvs_p)
-                self.Embeddings.index_add_(0, idx_n, -lr * (p_n.view(-1, 1) * embedu) - weight_decay * embedvs_n)
+                self.Embeddings.index_add_(0, idx_p, lr * (p_p.view(-1, 1) * (embedu - dEu)) - weight_decay * embedvs_p)
+                self.Embeddings.index_add_(0, idx_n, -lr * (p_n.view(-1, 1) * (embedu - dEu)) - weight_decay * embedvs_n)
                     
                 if (iter + 1) % 10 == 0:
                     # iter_loss += torch.sum(torch.log(1.0 - p_p)).item()
