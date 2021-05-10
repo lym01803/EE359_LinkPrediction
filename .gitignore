@@ -1,1 +1,4 @@
-/data/
+/data/posi.csv
+/data/nega.csv
+/data/result.csv
+/data/*.pth

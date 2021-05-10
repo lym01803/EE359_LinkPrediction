@@ -4,6 +4,7 @@ import encoder
 import utils
 from tqdm import tqdm
 import random
+import argparse
 
 def Train(ET):
     
@@ -14,22 +15,13 @@ def Train(ET):
     nega_ratio = 10
     for i in tqdm(range(G.n)):
         for r in range(walk_num):
-            #G.perform_walk(i, random.lognormvariate(0, 0.7), random.lognormvariate(0, 0.7), walk_length) # 0.7 \approx log 2
+            # G.perform_walk(i, random.lognormvariate(0, 0.7), random.lognormvariate(0, 0.7), walk_length) # 0.7 \approx log 2
             G.perform_walk(i, p=2.0, q=1.0, length=walk_length)
 
     Model = encoder.Node2Vec(G, dim=128)
     print('Learning Embedding...')
     Model.training(max_iter=100, negative=walk_length*nega_ratio, rewalk=False)
-    Model.save_embeddings('../data/save_train_128.pth')
-    '''
-    for i in range(100):
-        u, v = input().split()
-        u = int(u)
-        v = int(v)
-        eu = Model.Embeddings[u]
-        ev = Model.Embeddings[v]
-        print(torch.matmul(eu, ev))
-    '''
+    Model.save_embeddings('../data/embedding_128_new')
     return Model
 
 def Valid(EV, E, model=None):
@@ -62,8 +54,7 @@ def Valid(EV, E, model=None):
             f.write('{} {} : {}\n'.format(NegativeSample[0][i], NegativeSample[1][i], Nega_score[i]))
     return 1.0 * count / len(Posi_score) / len(Nega_score)
 
-def Test(Model, ETest):
-    Embeddings = Model.Embeddings
+def Test(Embeddings, ETest):
     Euv = torch.matmul(Embeddings, Embeddings.T)
     Euu = torch.sum(Embeddings * Embeddings, dim=1)
     score = []
@@ -72,18 +63,30 @@ def Test(Model, ETest):
         score.append((Euv[u][v] / torch.sqrt(Euu[u]) / torch.sqrt(Euu[v])).item())
     return score
 
-debug = False
-if debug:
+parser = argparse.ArgumentParser()
+parser.add_argument('--valid', action='store_true')
+parser.add_argument('--train_from_sketch', action='store_true')
+parser.add_argument('--embedding_path', type=str, default='../data/embedding_128')
+parser.add_argument('--result_path', type=str, default='../submission.csv')
+
+args = parser.parse_args()
+
+if args.valid:
     ET, EV = utils.Read_Graph('../data/course3_edge.csv', split=True, validsize=6000)
     model = Train(ET)
     Res = Valid(EV, np.hstack((ET, EV)), model)
     print("AUC: ", Res)
 else:
-    E = utils.Read_Graph('../data/course3_edge.csv', split=False)
-    model = Train(E)
+    Embeddings = None
+    if args.train_from_sketch:
+        E = utils.Read_Graph('../data/course3_edge.csv', split=False)
+        model = Train(E)
+        Embeddings = model.Embeddings
+    else:
+        Embeddings = torch.load(args.embedding_path)
     ETest = utils.Read_Test('../data/course3_test.csv')
-    score = Test(model, ETest)
-    with open('../data/result.csv', 'w', encoding='utf8') as f:
+    score = Test(Embeddings, ETest)
+    with open(args.result_path, 'w', encoding='utf8') as f:
         f.write('id,label\n')
         for i, s in enumerate(score):
-            f.write('{},{:.4f}\n'.format(i, s))
+            f.write('{},{:.4f}\n'.format(i, 0.5 * (s + 1.0)))
