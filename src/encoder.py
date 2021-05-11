@@ -11,7 +11,8 @@ class Node2Vec:
     def __init__(self, G, dim=128):
         self.G = G
         self.dim = dim
-        self.Embeddings = torch.zeros(self.G.n, self.dim).to("cuda:0")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.Embeddings = torch.zeros(self.G.n, self.dim).to(self.device)
         self.Embeddings.requires_grad = False
         nn.init.normal_(self.Embeddings, mean=0.0, std=1.0/(self.dim**0.5))
         self.UnigramTable = list()
@@ -55,7 +56,7 @@ class Node2Vec:
                 u = walk[0]
                 embedu = self.Embeddings[u]
 
-                idx_p = torch.tensor(walk[1:], dtype=torch.int64).to("cuda:0")
+                idx_p = torch.tensor(walk[1:], dtype=torch.int64).to(self.device)
                 embedvs_p = torch.index_select(self.Embeddings, 0, idx_p)
                 p_p = 1.0 - torch.sigmoid(torch.matmul(embedvs_p, embedu))
 
@@ -71,7 +72,7 @@ class Node2Vec:
                     if self.ridx >= len(self.UnigramTable):
                         self.ridx = 0
                         
-                idx_n = torch.tensor(neighbors, dtype=torch.int64).to("cuda:0")
+                idx_n = torch.tensor(neighbors, dtype=torch.int64).to(self.device)
                 embedvs_n = torch.index_select(self.Embeddings, 0, idx_n)
                 p_n = 1.0 - torch.sigmoid(-torch.matmul(embedvs_n, embedu))
 

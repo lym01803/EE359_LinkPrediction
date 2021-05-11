@@ -7,7 +7,7 @@ import random
 import argparse
 
 def Train(ET):
-    
+    global args
     G = utils.Graph(ET)
     print('Random Walking...')
     walk_num = 10
@@ -20,8 +20,8 @@ def Train(ET):
 
     Model = encoder.Node2Vec(G, dim=128)
     print('Learning Embedding...')
-    Model.training(max_iter=100, negative=walk_length*nega_ratio, rewalk=False)
-    Model.save_embeddings('../data/embedding_128_new')
+    Model.training(max_iter=args.max_iteration, negative=walk_length*nega_ratio, rewalk=False)
+    Model.save_embeddings(args.save_path)
     return Model
 
 def Valid(EV, E, model=None):
@@ -55,6 +55,8 @@ def Valid(EV, E, model=None):
     return 1.0 * count / len(Posi_score) / len(Nega_score)
 
 def Test(Embeddings, ETest):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    Embeddings = Embeddings.to(device)
     Euv = torch.matmul(Embeddings, Embeddings.T)
     Euu = torch.sum(Embeddings * Embeddings, dim=1)
     score = []
@@ -65,10 +67,13 @@ def Test(Embeddings, ETest):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--valid', action='store_true')
-parser.add_argument('--train_from_sketch', action='store_true')
+parser.add_argument('--train_from_scratch', action='store_true')
 parser.add_argument('--embedding_path', type=str, default='../data/embedding_128')
 parser.add_argument('--result_path', type=str, default='../submission.csv')
+parser.add_argument('--save_path', type=str, default='../data/embedding_128_new')
+parser.add_argument('--max_iteration', type=int, default=100)
 
+global args
 args = parser.parse_args()
 
 if args.valid:
@@ -78,7 +83,7 @@ if args.valid:
     print("AUC: ", Res)
 else:
     Embeddings = None
-    if args.train_from_sketch:
+    if args.train_from_scratch:
         E = utils.Read_Graph('../data/course3_edge.csv', split=False)
         model = Train(E)
         Embeddings = model.Embeddings
